@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cube-and-conquer worker: python3 cube.py puzzle.cnf idx deadline_epoch outfile
 Adds unit clauses for cube idx over the 4 most-occurring vars, runs several kissat configs in parallel."""
-import sys, os, time, subprocess, collections, shutil
+import sys, os, time, subprocess, collections, shutil, signal
 
 def parse(path):
     nv = 0; cl = []
@@ -34,10 +34,16 @@ def main():
     kissat = shutil.which('kissat') or './kissat/build/kissat'
     cfgs = [['--seed=1'], ['--seed=2', '--walkinitially=true'], ['--seed=3', '--stable=2'], ['--seed=4', '--target=2']]
     procs = []
+    def killall(*_):
+        for p, _f in procs:
+            try: os.killpg(p.pid, signal.SIGKILL)
+            except Exception: pass
+        os._exit(1)
+    signal.signal(signal.SIGTERM, killall); signal.signal(signal.SIGINT, killall)
     for i, extra in enumerate(cfgs[:max(1, min(4, os.cpu_count() or 1))]):
         cmd = ['timeout', str(budget), kissat, '-q', '--sat'] + extra + ['cube.cnf']
         o = open('out%d.txt' % i, 'w')
-        procs.append((subprocess.Popen(cmd, stdout=o, stderr=subprocess.STDOUT), 'out%d.txt' % i))
+        procs.append((subprocess.Popen(cmd, stdout=o, stderr=subprocess.STDOUT, start_new_session=True), 'out%d.txt' % i))
     t0 = time.time(); found = None
     while procs and not found:
         time.sleep(0.5)
@@ -46,7 +52,7 @@ def main():
                 procs.remove((p, fn))
                 if p.returncode == 10: found = fn; break
     for p, fn in procs:
-        try: p.kill()
+        try: os.killpg(p.pid, signal.SIGKILL)
         except Exception: pass
     print('elapsed', round(time.time() - t0, 1), 'found', found, flush=True)
     if not found:
