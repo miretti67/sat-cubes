@@ -22,11 +22,11 @@ def main():
     path, idx, deadline, out = sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), sys.argv[4]
     nv, cl = parse(path)
     cnt = collections.Counter(abs(l) for c in cl for l in c)
-    top = [v for v, _ in sorted(cnt.items(), key=lambda kv: (-kv[1], kv[0]))[:4]]
-    units = [(top[b] if (idx >> b) & 1 else -top[b]) for b in range(4)]
+    top = [v for v, _ in sorted(cnt.items(), key=lambda kv: (-kv[1], kv[0]))[:3]]
+    units = [(top[b] if (idx >> b) & 1 else -top[b]) for b in range(3)]
     print('nproc', os.cpu_count(), 'vars', nv, 'clauses', len(cl), 'cube vars', top, 'units', units, flush=True)
     with open('cube.cnf', 'w') as f:
-        f.write('p cnf %d %d\n' % (nv, len(cl) + 4))
+        f.write('p cnf %d %d\n' % (nv, len(cl) + 3))
         for c in cl: f.write(' '.join(map(str, c)) + ' 0\n')
         for u in units: f.write('%d 0\n' % u)
     budget = max(5, int(deadline - time.time() - 60))
