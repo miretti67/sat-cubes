@@ -1,0 +1,36 @@
+name: solve
+on:
+  workflow_dispatch:
+    inputs:
+      puzzle:
+        description: 'path of CNF in repo'
+        required: true
+      deadline_epoch:
+        description: 'unix epoch seconds deadline'
+        required: true
+jobs:
+  cube:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        idx: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: install kissat
+        run: |
+          if ! (sudo apt-get update -qq && sudo apt-get install -y -qq kissat); then
+            git clone --depth 1 https://github.com/arminbiere/kissat.git
+            (cd kissat && ./configure >/dev/null && make -j4 >/dev/null)
+          fi
+          which kissat || ls kissat/build/kissat
+      - name: solve cube
+        run: |
+          nproc
+          python3 cube.py "${{ github.event.inputs.puzzle }}" ${{ matrix.idx }} "${{ github.event.inputs.deadline_epoch }}" sol.txt
+      - uses: actions/upload-artifact@v4
+        if: hashFiles('sol.txt') != ''
+        with:
+          name: sol-${{ matrix.idx }}
+          path: sol.txt
